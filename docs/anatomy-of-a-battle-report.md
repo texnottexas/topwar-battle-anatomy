@@ -64,7 +64,7 @@ Example: reportId=4605240496314802177 → .../prod/4605/4605240496314802177.json
 
 ## 2. Top-Level JSON Structure
 
-```json
+```
 {
   "reportId": "4605240496314802177",
   "logtime": 1775319323,           // Unix timestamp of battle
@@ -77,7 +77,7 @@ Example: reportId=4605240496314802177 → .../prod/4605/4605240496314802177.json
 
 ## 3. battle Root Fields
 
-```json
+```
 {
   "result": 1,          // 1=attacker wins, 2=defender wins
   "ver": 1,             // Report format version
@@ -99,7 +99,7 @@ Example: reportId=4605240496314802177 → .../prod/4605/4605240496314802177.json
 
 These are the march-level containers. Most detailed data is inside `players[0]`.
 
-```json
+```
 {
   "fightTeamId": 2,          // Which team (1=defender, 2=attacker in PvP; NPC varies)
   "marchId": 2,              // March ID (matches fightMarches attMarchId/defMarchId)
@@ -132,7 +132,7 @@ These are the march-level containers. Most detailed data is inside `players[0]`.
 
 The richest data source. In rally battles this array has multiple players; in solo it has exactly 1.
 
-```json
+```
 {
   "uid": XXXXXXX 272,
   "career": 72001,
@@ -164,7 +164,7 @@ The richest data source. In rally battles this array has multiple players; in so
 ```
 
 ### playerInfo (JSON string, not object)
-```json
+```
 {
   "username": "Tex",
   "nickname": "",
@@ -185,7 +185,7 @@ The richest data source. In rally battles this array has multiple players; in so
 
 Array of all buffs active during the battle, after grouping/redirect logic.
 
-```json
+```
 { "id": 930001, "val": 256300 }          // Standard buff: id + val
 { "bufid": 921006, "value": 7000, "specialType": 1, "data": ["10112"] }  // Special buff
 ```
@@ -213,7 +213,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.3 heroList — Heroes in March
 
-```json
+```
 {
   "id": 332,           // heroId
   "level": 120,        // Hero level (max 120)
@@ -246,7 +246,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 6 slots per hero (inside `heroList[].heroEquips`, NOT at `players[0].heroEquips` which is null).
 
-```json
+```
 {
   "equipId": 100104,         // slot*100000 + quality (quality 4 = max/gold)
   "level": 20,               // Enhancement level (max 20)
@@ -275,7 +275,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.5 effectDecorations — Decorations
 
-```json
+```
 {
   "ids": [ 52995, 47782, ... ],          // All placed decoration IDs (up to ~800)
   "sublimes": [                           // Upgraded decorations with buff contributions
@@ -316,7 +316,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.7 enigmas — Enigma Beasts
 
-```json
+```
 {
   "beastDatas": [
     {
@@ -341,7 +341,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.8 formationV2 — Formation
 
-```json
+```
 {
   "formationId": 1,           // Formation type
   "slots": [ ... ],           // Formation slot assignments
@@ -360,7 +360,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 ### 5.9 armyEquips / newArmyEquips — HT Chips
 
 **`armyEquips[]`** (older format):
-```json
+```
 { "itemId": 403100, "pos": 1, "armyType": 101 }
 // armyType: 101=Army, 201=Navy, 301=Air Force
 // pos: slot position (1-6)
@@ -368,7 +368,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 ```
 
 **`newArmyEquips.equips[]`** (newer format, also in `fightMarches`):
-```json
+```
 { "eid": 910039, "pos": 30101, "suit": 9, "id": 3559869806198284297 }
 // pos format: {armyType}{slot:02d} e.g. 30101 = Air Force, slot 01
 // eid: equipment template ID (910xxx range)
@@ -381,7 +381,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.10 CTCs — Collectible HT Chips
 
-```json
+```
 {
   "themes": [1, 2, 3],
   "collects": [
@@ -422,7 +422,7 @@ Array of all buffs active during the battle, after grouping/redirect logic.
 
 ### 5.13 allStandings — Battle Outcome
 
-```json
+```
 {
   "total": 404,       // Total troops at battle start
   "survival": 225,    // Troops surviving
@@ -459,7 +459,7 @@ Small array of special/conditional buffs not captured in effectBuffs:
 
 One entry per hero formation slot (up to 9 slots observed).
 
-```json
+```
 {
   "uid": XXXXXXX 272,           // Player UID
   "uuid": "10112",                // Formation slot UUID (matches armyUuids entries)
@@ -482,7 +482,7 @@ One entry per hero formation slot (up to 9 slots observed).
 
 Two formats exist simultaneously (legacy + new).
 
-```json
+```
 // mechas[] — array
 {
   "mechaId": 1005,          // Mecha type ID (1002-1008 observed)
@@ -539,7 +539,7 @@ See §11 for full CP calculation analysis.
 
 ### 8.3 Skill Damage (attSkillHurts)
 
-```json
+```
 {
   "total_hurt": 28399440,
   "common_hurt": 18243200,
@@ -562,7 +562,7 @@ See §11 for full CP calculation analysis.
 
 ### 8.4 Traps
 
-```json
+```
 "attTraps": [],    // Attacker traps (usually empty)
 "defTraps": []     // Defender traps deployed
 ```
@@ -637,7 +637,7 @@ The full battle simulation log. 438–3350 events observed depending on battle l
 
 ## 10. etReward — Battle Rewards
 
-```json
+```
 [
   { "count": 1, "id": 69159 },    // Item ID + quantity dropped
   { "count": 1, "id": 2300003 },
