@@ -600,27 +600,29 @@ The full battle simulation log. 438–3350 events observed depending on battle l
 
 **Known `t` event types** (from observed reports):
 
-| t= | Suspected Meaning |
-|----|------------------|
-| 1 | Troop kill event |
-| 2 | Damage dealt |
-| 3 | Skill triggered |
-| 4 | Battle start / metadata |
-| 5 | Shield/HP event |
-| 6 | Buff applied |
-| 7 | Debuff applied |
-| 9 | Formation effect |
-| 11 | Mecha action |
-| 14 | Skill damage tick (effect_buff) |
-| 19 | Round end |
-| 25 | Special effect |
-| 27 | Element effect |
-| 30 | Attack event |
-| 31 | Round start |
-| 32 | Troop update |
-| 33 | Status change |
-| 35 | Heal/recovery |
-| 37 | Resource event |
+| t= | Name | Fields | Description |
+|----|------|--------|-------------|
+| 1 | UNIT_REGISTER | source=unitUUID, val=gridPos | Position assignment at battle start. Each unit gets a grid slot (1/2/3=row0, 11/12/13=row1, 21/22/23=row2). Attacker and defender share the same position index — one per side per cell. |
+| 2 | UNIT_ATTACK | source=uuid, target=uuid, val=newHP, eValue=dmgDealt, oldHit=prevHP, power=unitMaxPow | Standard troop-vs-troop attack. val=HP after hit, eValue=damage dealt. Most frequent event in combat rounds. |
+| 3 | SKILL_SELF_BUFF | source=uuid, hero=heroId, skill=skillId, val=power, triggerType=1 | Hero passive skill triggers as self-buff on own formation. Source and target are the same UUID. Very frequent (334/round avg). |
+| 4 | BATTLE_INIT | source='0', val=teamCount | Single event at tl=0. val=2 (always two teams). Initialises the battle. |
+| 5 | HERO_SKILL_ACT | source=uuid, hero=heroId, skill=skillId, num=activationCount | Hero activates their active skill on a specific unit. Distinct from t=7 which is the actual hit. |
+| 6 | HERO_REGISTER | source='0', hero=heroId, skill=1 | Hero roster registration at tl=0. One event per hero (6 total = 3 per side). val=0 always. |
+| 7 | HERO_SKILL_HIT | source=uuid, target=uuid, hero=heroId, skill=skillId, val=damage | Hero skill deals direct damage to a specific enemy unit. val=damage amount. |
+| 9 | UNIT_INIT_STATS | source=uuid, val=HP, selfVal=shield, power=maxPower | Unit initial HP and shield setup at tl=0. One per unit (36 total = 18 per side). val=initial HP, selfVal=initial shield. |
+| 11 | EQUIP_SKILL_BUFF | source=teamId, target=uuid, skill=runeSkillId, directAddEffect=1 | Hero equipment/rune skill applies effect to a unit. source='1' or '2' (team ID, not unit UUID). |
+| 14 | BUFF_DAMAGE | source=uuid, target=uuid, buffId=id, skill=skillId, power=unitPow, val=damage | Buff/DoT damage tick — Magnetic Pulse, Ignition, hero skill secondary damage. Same IDs as effectBuffs skill_hurts. |
+| 19 | UNIT_DEATH | source=uuid, val=0 | A unit/formation is fully eliminated. Does NOT appear at round boundaries — appears at the tl of the killing blow. |
+| 25 | FORMATION_SKILL | source=uuid, target=uuid, skill=formationSkillId, val=buffId | Formation skill activation. skill=941215 = Scorpion/Counterblow. val=100008 (Counterblow buffId) or rune IDs. |
+| 27 | MECHA_ACTION | source=mechaUUID, val=actionValue | Mecha performs its special action. Appears in high frequency during rounds mecha is active. val=2500 or 6500 (mecha-specific). |
+| 30 | TEAM_SETUP | source=attTeamId, target=defTeamId, val=1 | Single event at tl=0 declaring which team is attacker (source) and which is defender (target). |
+| 31 | STAGE_REGISTER | source='0', val=stageIndex | Registers battle stages at tl=0. val=1,2,3... sequential. In PvP 6 events seen (mecha skill slot count); in 1-round guardian: 1 event. |
+| 32 | BUFF_APPLY_MULTI | source=uuid, targets=csv(uuids), nums=csv(stacks), buffId=id, skill=skillId | Buff applied to multiple targets simultaneously. targets/nums are comma-separated strings. val=0 always. |
+| 33 | UNIT_TURN_START | source=uuid | Unit's turn begins in the current round. Appears once per active unit per round. No val. |
+| 35 | STAGE_CHANGE | source='0', val=stageNum, selfVal=totalStages | Battle stage transition. Only appears in multi-stage PvP battles (not 1-round guardian). |
+| 37 | RUNE_ACTIVATE | source=uuid, hero=heroId, skill=runeSkillId, val=0 | Rune skill activates on a unit. skill is a 400xxxx rune skill ID. |
+
+**Grid position system:** t=1 events reveal the battlefield grid. Positions use a sparse index: 1,2,3 = row 0 (top); 11,12,13 = row 1 (middle); 21,22,23 = row 2 (bottom). Formula: `row = floor((pos-1)/10)`, `col = (pos-1) % 10`. Each position holds one attacker unit AND one defender unit — they fight from opposite sides of the diagonal split. Attacker unit UUIDs in PvP: short sequential strings like "10001"; defender: "50048". In wasteland battles both sides use long numeric UUIDs.
 
 **Timeline (`tl`):** increments by 1200ms per round. `tl=0` = pre-battle init, `tl=1800` = round 1, `tl=3000` = round 2, etc. (gap between 0 and 1800 is setup phase). Max tl in observed 28-round battle: ~23,400ms.
 
