@@ -103,7 +103,7 @@ These are the march-level containers. Most detailed data is inside `players[0]`.
 {
   "fightTeamId": 2,          // Which team (1=defender, 2=attacker in PvP; NPC varies)
   "marchId": 2,              // March ID (matches fightMarches attMarchId/defMarchId)
-  "uid": XXXXXXX272,      // Player UID
+  "uid": XXXXXXX 272,      // Player UID (masked here)
   "career": 72001,           // Career/class ID
   "stamp": 1008,             // Framework stamp (internal)
   "alTag": "",               // Alliance tag
@@ -134,7 +134,7 @@ The richest data source. In rally battles this array has multiple players; in so
 
 ```json
 {
-  "uid": 7550807444272,
+  "uid": XXXXXXX 272,
   "career": 72001,
   "playerInfo": "{...JSON string...}",  // Name, avatar URLs, nationalflag, gender
   "stamp": 1008,
@@ -461,7 +461,7 @@ One entry per hero formation slot (up to 9 slots observed).
 
 ```json
 {
-  "uid": 7550807444272,           // Player UID
+  "uid": XXXXXXX 272,           // Player UID
   "uuid": "10112",                // Formation slot UUID (matches armyUuids entries)
   "armyId": 901103,               // Troop type ID (e.g. 901103=Valhalla Mecha, 505111=specific mecha troop)
   "maxPower": 204483073614300.0,  // Raw engine power for this slot (used in physics, NOT displayed CP)
@@ -582,7 +582,7 @@ See §11 for full CP calculation analysis.
 
 ## 9. process[] — Round-by-Round Events
 
-The full battle simulation log. 438–3350 events observed depending on battle length.
+The full battle simulation log. 438–3350 events observed depending on battle length. **All 19 event types are now fully decoded** (see table below). The array is also the sole source for the in-game battle replay — there is no separate video file (see Replay confirmation below).
 
 ```json
 { "val": 2.0, "selfVal": 0.0, "t": 4, "tl": 0, "source": "0" }
@@ -598,37 +598,40 @@ The full battle simulation log. 438–3350 events observed depending on battle l
 | `val` | Primary value (damage, count, etc.) |
 | `selfVal` | Secondary value (self-damage, etc.) |
 
-**Known `t` event types** (from observed reports):
+**`t` event type reference — all 19 types fully decoded:**
 
-| t= | Name | Fields | Description |
-|----|------|--------|-------------|
-| 1 | UNIT_REGISTER | source=unitUUID, val=gridPos | Position assignment at battle start. Each unit gets a grid slot (1/2/3=row0, 11/12/13=row1, 21/22/23=row2). Attacker and defender share the same position index — one per side per cell. |
-| 2 | UNIT_ATTACK | source=uuid, target=uuid, val=newHP, eValue=dmgDealt, oldHit=prevHP, power=unitMaxPow | Standard troop-vs-troop attack. val=HP after hit, eValue=damage dealt. Most frequent event in combat rounds. |
-| 3 | SKILL_SELF_BUFF | source=uuid, hero=heroId, skill=skillId, val=power, triggerType=1 | Hero passive skill triggers as self-buff on own formation. Source and target are the same UUID. Very frequent (334/round avg). |
-| 4 | BATTLE_INIT | source='0', val=teamCount | Single event at tl=0. val=2 (always two teams). Initialises the battle. |
-| 5 | HERO_SKILL_ACT | source=uuid, hero=heroId, skill=skillId, num=activationCount | Hero activates their active skill on a specific unit. Distinct from t=7 which is the actual hit. |
+| t= | Name | Key Fields | Description |
+|----|------|-----------|-------------|
+| 1 | UNIT_REGISTER | source=unitUUID, val=gridPos | Position assignment at tl=0. Grid: 1/2/3=row0, 11/12/13=row1, 21/22/23=row2. Both attacker and defender units are assigned positions — they share the same index, fighting from opposite sides of the diagonal. |
+| 2 | UNIT_ATTACK | source=uuid, target=uuid, val=newHP, eValue=dmgDealt, oldHit=prevHP, power=unitMaxPow | Standard troop-vs-troop attack hit. `val` = HP after the hit, `eValue` = damage amount. Most frequent event in combat rounds. Core of HP tracking. |
+| 3 | SKILL_SELF_BUFF | source=uuid, hero=heroId, skill=skillId, val=power, triggerType=1 | Hero passive skill triggers as a self-buff on its own formation unit. Source and target are the same UUID. Very frequent (334 events in PvP round avg). |
+| 4 | BATTLE_INIT | source='0', val=teamCount | Single event at tl=0. val=2 (two teams always). Initialises the battle session. |
+| 5 | HERO_SKILL_ACT | source=uuid, hero=heroId, skill=skillId, num=count | Hero activates their active skill on a unit. Distinct from t=7 which is the resulting damage hit. |
 | 6 | HERO_REGISTER | source='0', hero=heroId, skill=1 | Hero roster registration at tl=0. One event per hero (6 total = 3 per side). val=0 always. |
-| 7 | HERO_SKILL_HIT | source=uuid, target=uuid, hero=heroId, skill=skillId, val=damage | Hero skill deals direct damage to a specific enemy unit. val=damage amount. |
-| 9 | UNIT_INIT_STATS | source=uuid, val=HP, selfVal=shield, power=maxPower | Unit initial HP and shield setup at tl=0. One per unit (36 total = 18 per side). val=initial HP, selfVal=initial shield. |
-| 11 | EQUIP_SKILL_BUFF | source=teamId, target=uuid, skill=runeSkillId, directAddEffect=1 | Hero equipment/rune skill applies effect to a unit. source='1' or '2' (team ID, not unit UUID). |
-| 14 | BUFF_DAMAGE | source=uuid, target=uuid, buffId=id, skill=skillId, power=unitPow, val=damage | Buff/DoT damage tick — Magnetic Pulse, Ignition, hero skill secondary damage. Same IDs as effectBuffs skill_hurts. |
-| 19 | UNIT_DEATH | source=uuid, val=0 | A unit/formation is fully eliminated. Does NOT appear at round boundaries — appears at the tl of the killing blow. |
-| 25 | FORMATION_SKILL | source=uuid, target=uuid, skill=formationSkillId, val=buffId | Formation skill activation. skill=941215 = Scorpion/Counterblow. val=100008 (Counterblow buffId) or rune IDs. |
-| 27 | MECHA_ACTION | source=mechaUUID, val=actionValue | Mecha performs its special action. Appears in high frequency during rounds mecha is active. val=2500 or 6500 (mecha-specific). |
-| 30 | TEAM_SETUP | source=attTeamId, target=defTeamId, val=1 | Single event at tl=0 declaring which team is attacker (source) and which is defender (target). |
-| 31 | STAGE_REGISTER | source='0', val=stageIndex | Registers battle stages at tl=0. val=1,2,3... sequential. In PvP 6 events seen (mecha skill slot count); in 1-round guardian: 1 event. |
-| 32 | BUFF_APPLY_MULTI | source=uuid, targets=csv(uuids), nums=csv(stacks), buffId=id, skill=skillId | Buff applied to multiple targets simultaneously. targets/nums are comma-separated strings. val=0 always. |
-| 33 | UNIT_TURN_START | source=uuid | Unit's turn begins in the current round. Appears once per active unit per round. No val. |
-| 35 | STAGE_CHANGE | source='0', val=stageNum, selfVal=totalStages | Battle stage transition. Only appears in multi-stage PvP battles (not 1-round guardian). |
-| 37 | RUNE_ACTIVATE | source=uuid, hero=heroId, skill=runeSkillId, val=0 | Rune skill activates on a unit. skill is a 400xxxx rune skill ID. |
+| 7 | HERO_SKILL_HIT | source=uuid, target=uuid, hero=heroId, skill=skillId, val=damage | Hero skill deals direct damage to a specific enemy unit. |
+| 9 | UNIT_INIT_STATS | source=uuid, val=HP, selfVal=shield, power=maxPower | Unit initial HP and shield values at tl=0. One event per unit (36 total = 18 per side). Used to establish max HP for health bar tracking. |
+| 11 | EQUIP_SKILL_BUFF | source=teamId, target=uuid, skill=runeSkillId, directAddEffect=1 | Hero equipment/rune skill applies an effect to a unit. source='1' or '2' (team ID, NOT unit UUID). |
+| 14 | BUFF_DAMAGE | source=uuid, target=uuid, buffId=id, skill=skillId, power=unitPow, val=damage | Buff/DoT damage tick — Magnetic Pulse, Ignition, hero skill secondary effects. Same buff IDs as those in `attSkillHurts.effect_buff_hurts`. |
+| 19 | UNIT_DEATH | source=uuid, val=0 | A unit/formation is fully eliminated. Appears at the tl of the killing blow, not at round boundaries. |
+| 25 | FORMATION_SKILL | source=uuid, target=uuid, skill=formationSkillId, val=buffId | Formation skill activation. skill=941215 = Scorpion/Counterblow. val=100008 (Counterblow buffId). |
+| 27 | MECHA_ACTION | source=mechaUUID, val=actionValue | Mecha performs a special action during combat. val is mecha-type-specific (observed: 2500 or 6500). High frequency when mecha is active. |
+| 30 | TEAM_SETUP | source=attTeamId, target=defTeamId, val=1 | Single event at tl=0 identifying which team is attacker (source) and which is defender (target). |
+| 31 | STAGE_REGISTER | source='0', val=stageIndex | Stage/phase registration at tl=0. val=1,2,3... sequential. PvP: 6 events (suspected = mecha equipped skill slots 1–6). Guardian: 1 event. Exact purpose unconfirmed. |
+| 32 | BUFF_APPLY_MULTI | source=uuid, targets=csv(uuids), nums=csv(stacks), buffId=id, skill=skillId | Buff applied to multiple targets simultaneously. `targets` and `nums` are comma-separated strings. val=0 always. |
+| 33 | UNIT_TURN_START | source=uuid | Unit's turn begins in the current round. One event per active unit per round. No val field. |
+| 35 | STAGE_CHANGE | source='0', val=stageNum, selfVal=totalStages | Battle stage transition. Only in multi-stage PvP battles. tl values observed: 22200, 43800, 65400, 85800, 100200 (every ~21,600ms = 18 rounds per stage). |
+| 37 | RUNE_ACTIVATE | source=uuid, hero=heroId, skill=runeSkillId, val=0 | Rune skill activates on a unit. skill is a 400xxxx rune skill ID (e.g. 4001022, 4001041). |
 
-**Grid position system:** t=1 events reveal the battlefield grid. Positions use a sparse index: 1,2,3 = row 0 (top); 11,12,13 = row 1 (middle); 21,22,23 = row 2 (bottom). Formula: `row = floor((pos-1)/10)`, `col = (pos-1) % 10`. Each position holds one attacker unit AND one defender unit — they fight from opposite sides of the diagonal split. Attacker unit UUIDs in PvP: short sequential strings like "10001"; defender: "50048". In wasteland battles both sides use long numeric UUIDs.
+**Timeline (`tl`):** increments by 1200ms per round. `tl=0` = pre-battle init, `tl=1800` = round 1, `tl=3000` = round 2, etc. (gap between 0 and 1800 is setup phase). Observed max tl: ~100,200ms in a long PvP battle (t=35 stage-change events reveal the full timeline). The 85 distinct tl values in a 28-round report include setup (tl=0) plus combat rounds.
 
-**Timeline (`tl`):** increments by 1200ms per round. `tl=0` = pre-battle init, `tl=1800` = round 1, `tl=3000` = round 2, etc. (gap between 0 and 1800 is setup phase). Max tl in observed 28-round battle: ~23,400ms.
+**Source/target UUID conventions:**
+- `'0'` — system/global (BATTLE_INIT, HERO_REGISTER, STAGE_REGISTER, STAGE_CHANGE)
+- `'1'` or `'2'` — team IDs (TEAM_SETUP, EQUIP_SKILL_BUFF source)
+- `'10xxx'` — attacker formation slot UUIDs (short sequential, PvP)
+- `'50xxx'` — defender formation slot UUIDs (short sequential, PvP; '5' prefix distinguishes side)
+- Long numeric (e.g. `'4605144622810820666'`) — formation slot UUIDs in wasteland/NPC battles (both sides)
 
-> **⚠️ Largely unmapped in terms of individual event types.** However, the role of `process[]` is now confirmed — see §17.
-
-**CONFIRMED: `process[]` IS the replay. There is no video endpoint.** When the in-game Replay button is clicked, `NMailBattlePanel.onReplayClick()` calls `h.replay(mailData)` passing the full report data (including `process[]`) to `NBattleMainComponent`, which renders the battle live using the game engine. `BattleReplayview` drives round navigation (`_currentRound`/`_currentRoundMax`). The only network traffic triggered is sprite atlas / prefab asset fetches for troop models — no MP4, WebM, or separate CDN video URL exists. The replay is fully self-contained in the CDN JSON.
+**CONFIRMED: `process[]` IS the replay. There is no video endpoint.** When the in-game Replay button is clicked, `NMailBattlePanel.onReplayClick()` passes `process[]` to `NBattleMainComponent`, which renders the battle live. `BattleReplayview` drives round navigation. No MP4/WebM/M3U8 exists — the replay is fully self-contained in the CDN JSON.
 
 ---
 
@@ -798,8 +801,12 @@ The `s` field = `type_small`. Multiple `type_small` values can map to one `type_
 - Battle rewards (`etReward`)
 - Trap data (`attTraps` / `defTraps`)
 - Mecha skill details beyond icon
-- Process/replay (see §17)
 - Rally battles (multiple players in march)
+
+### battle-replay.html
+`https://2864tw.com/battle-replay.html`
+
+Standalone Canvas-based battle replay renderer built directly from the CDN JSON. Parses `process[]` events to reconstruct the full battle — unit positions from t=1, HP tracking from t=2/t=19, hero skills from t=7, buff damage from t=14, formation skills from t=25. Renders a 3×3 formation grid with attacker lower-left, defender upper-right per cell. Features: HP arc rings, floating damage numbers, KO indicators, round-by-round playback, play/pause/1×/2×/4× speed, progress scrubber, VS bar, hero portrait row, per-round event log. Shareable via `?id=` param.
 
 ### enigma-viewer.html
 Referenced via `?id=` passthrough. Shows enigma beast comparison.
@@ -811,11 +818,12 @@ Referenced via `?id=` passthrough. Shows decoration details.
 
 ## 17. Unmapped / Unknown Areas
 
-### High Priority (suspected valuable data)
+> **Note:** `process[]` event types are now **fully decoded** — all 19 types mapped with complete field definitions (see §9). They have been removed from this section. The replay mechanism is also confirmed (see §9).
+
+### High Priority (data present, not yet rendered/used)
 
 | Area | Location | Status | Notes |
 |------|----------|--------|-------|
-| **process[] event types** | `battle.process[]` | Unmapped | 3,350 events in a long PvP; used for in-game replay animation. t=1-37 types partially guessed. `tl` is millisecond timeline. |
 | **Battle replay video** | `process[]` in CDN JSON | **CONFIRMED — no video endpoint** | Replay is client-side only. `NBattleMainComponent` + `BattleReplayview` render the battle live from `process[]`. No MP4/WebM/M3U8 exists. Only asset bundle fetches triggered (sprite atlases for troop models). |
 | **attSpecialBuff / defSpecialBuff** | `fightMarches[0]` | Empty in observations | May hold conditional in-battle buffs not in effectBuffs |
 | **defTraps / attTraps** | `fightMarches[0]` | Empty in observations | Format unknown; likely array of trap items |
