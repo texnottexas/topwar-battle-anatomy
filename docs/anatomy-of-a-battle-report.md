@@ -437,7 +437,8 @@ All values are arrays of ids (Confirmed shape; the April `skinId1/citySkill1` ob
 
 - `beastDatas[].cfg` = `enigma_beast` table id (quality, faction, type, max level, max star). Level cap 100 (quality 5), 80 (quality 4), 60 (quality 3). Star cap 5. `potential` cap 16000 (range of rolls 6558-15996 seen). Element is decoded from `cfg`, not a field
 - `fields[]`: five fields, `cfg` 1-5 = CPNT Mastery, Formation, Equip, Defense, Offense (holes per field 5 / 7 / 6 / 9 / 9)
-  - **A field with no beasts is left out of the array.** An unlocked, empty Offense field is simply absent
+  - **A field with no beasts is left out of the array**, whether it is locked or not
+  - Unlock rule (game table `enigma_field.unlock_condition`): Defense opens at **40** and Offense at **150** total beast field slot levels (the sum of `slots[].level`). Confirmed: it separates every player in a 23-report study. Fields 1-3 have no level rule visible in a report
   - `active`: field unlocked (false on 5 sides studied)
   - `conditions[]`: ids of the field-bonus conditions that are satisfied (field 1: 1-5, field 2: 6-12, field 3: 13-18, field 4: 19-27, field 5: 28-36)
   - `slots[].id` = hole (platform) id 1-36; `slots[].level` = platform enhancement level, **cap 20 for fields 1-3 and 40 for fields 4-5** (cost is paid in field repeaters, 5-80 per early level); `beastId` "0" = empty hole; a filled hole with `buffs: []` means its condition is not met
